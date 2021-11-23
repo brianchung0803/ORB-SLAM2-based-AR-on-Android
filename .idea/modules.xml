@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/ORB-SLAM2-based-AR-on-Android.iml" filepath="$PROJECT_DIR$/.idea/modules/ORB-SLAM2-based-AR-on-Android.iml" group="ORB-SLAM2-based-AR-on-Android" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/app.iml" group="ORB-SLAM2-based-AR-on-Android/app" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/openCVLibrary320/openCVLibrary320.iml" filepath="$PROJECT_DIR$/.idea/modules/openCVLibrary320/openCVLibrary320.iml" group="ORB-SLAM2-based-AR-on-Android/openCVLibrary320" />
+    </modules>
+  </component>
+</project>

@@ -160,7 +160,7 @@ add_library(ORBSLAM2
     src/main/cpp/ORB/src/KeyFrameDatabase.cc
     src/main/cpp/ORB/src/Sim3Solver.cc
     src/main/cpp/ORB/src/Initializer.cc
-    #src/main/cpp/ORB/src/Viewer.cc
+        #src/main/cpp/ORB/src/Viewer.cc
 )
 
 add_library(native-lib
@@ -187,7 +187,7 @@ target_link_libraries( # Specifies the target library.
                        lib_opencv
                        ORBSLAM2)
 
-set(pathToProject D:\\codes\\AndroidCode\\FireStoneYS ORB-SLAM2\\ORB-Test)
+set(pathToProject /Users/Brian/Library/Android/ ORB-SLAM2\\ORB-Test)
 set(pathToOpenCv D:\\software\\opencv3.0forAndroid\\OpenCV-android-sdk)
 #支持-std=gnu++11
 set(CMAKE_VERBOSE_MAKEFILE on)

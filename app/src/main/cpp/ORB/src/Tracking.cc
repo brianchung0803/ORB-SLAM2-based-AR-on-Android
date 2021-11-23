@@ -207,6 +207,7 @@ cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRe
 
     Track();
 
+
     return mCurrentFrame.mTcw.clone();
 }
 
@@ -242,7 +243,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const d
 }
 
 
-cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
+cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp,bool& isKeyFrame,bool& isRelocalize)
 {
 
     LOGI("Tracking::GrabImageMonocular======================");
@@ -277,6 +278,9 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
     start = clock();
     Track();
     end = clock();
+    isKeyFrame = isKey;
+    isRelocalize = isReloc;
+
     LOGE("Track total Use Time=%f\n",((double)end-start)/CLOCKS_PER_SEC);
 
     LOGE("Grab Image  Monocular!!!!!");
@@ -323,7 +327,7 @@ void Tracking::Track()
             {
                 // Local Mapping might have changed some MapPoints tracked in last frame
                 CheckReplacedInLastFrame();
-
+                isReloc = false;
                 if(mVelocity.empty() || mCurrentFrame.mnId<mnLastRelocFrameId+2)    //运动模型为空或者当前帧id小于上次重定位帧+2
                 {   clock_t start,end;
                     start=clock();
@@ -345,6 +349,7 @@ void Tracking::Track()
             else
             {
                 bOK = Relocalization(); //丢失后重定位
+                isReloc = true;
             }
         }
         else
@@ -489,7 +494,13 @@ void Tracking::Track()
 
             // Check if we need to insert a new keyframe
             if(NeedNewKeyFrame())       //看是否插入关键帧
+            {
+                isKey = true;
                 CreateNewKeyFrame();
+            }else{
+                isKey = false;
+            }
+
 
             // We allow points with high innovation (considererd outliers by the Huber Function)
             // pass to the new keyframe, so that bundle adjustment will finally decide
@@ -1408,6 +1419,7 @@ void Tracking::UpdateLocalKeyFrames()
 bool Tracking::Relocalization()
 {
     // Compute Bag of Words Vector
+    LOGE("relocalizing");
     mCurrentFrame.ComputeBoW();     //当前帧计算词袋库
 
     // Relocalization is performed when tracking is lost

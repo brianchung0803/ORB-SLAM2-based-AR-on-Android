@@ -15,9 +15,8 @@
 
 #define BOWISBIN
 
-//ORB_SLAM2::System SLAM("/storage/emulated/0/ORBvoc.txt","/storage/emulated/0/TUM1.yaml",ORB_SLAM2::System::MONOCULAR,false);
 #ifdef BOWISBIN
-ORB_SLAM2::System SLAM("/storage/emulated/0/SLAM/VOC/ORBvoc.bin","/storage/emulated/0/SLAM/Calibration/mi6.yaml",ORB_SLAM2::System::MONOCULAR,false);
+ORB_SLAM2::System* SLAM=nullptr;
 #endif
 std::chrono::steady_clock::time_point t0;
 double ttrack=0;
@@ -58,13 +57,21 @@ cv::Point2f Camera2Pixel(cv::Mat poseCamera,cv::Mat mk){
 
 extern "C"
 JNIEXPORT jfloatArray JNICALL
-Java_com_example_ys_orbtest_OrbTest_CVTest(JNIEnv *env, jobject instance, jlong matAddr) {
+Java_com_example_ys_orbtest_OrbTest_CVTest(JNIEnv *env, jobject instance, jlong matAddr ) {
 
 #ifndef BOWISBIN
     if(ttrack == 0)
     txt_2_bin();
     ttrack++;
 #else
+
+    if(!SLAM)
+    {
+        LOGI("First frame - SLAM system loading voc and calib data...");
+        SLAM = new ORB_SLAM2::System("/storage/emulated/0/SLAM/VOC/ORBvoc.bin","/storage/emulated/0/SLAM/Calibration/mi6.yaml",ORB_SLAM2::System::MONOCULAR,false);
+        LOGI("SLAM system loaded voc and calib data.");
+    }
+
     //LOGI("Native Start");
     cv::Mat *pMat = (cv::Mat*)matAddr;
 
@@ -76,13 +83,15 @@ Java_com_example_ys_orbtest_OrbTest_CVTest(JNIEnv *env, jobject instance, jlong 
 
     //LOGI("new frame come here===============");
     //ttrack 表示帧号
-    cv::Mat pose = SLAM.TrackMonocular(*pMat,ttrack);
+    bool isKeyFrame=false;
+    bool isRelocalize=false;
+    cv::Mat pose = SLAM->TrackMonocular(*pMat,ttrack,isKeyFrame,isRelocalize);
     end = clock();
     LOGI("Get Pose Use Time=%f\n",((double)end-start)/CLOCKS_PER_SEC);
 
     static bool instialized =false;
     static bool markerDetected =false;
-    if(SLAM.MapChanged()){
+    if(SLAM->MapChanged()){
         instialized = false;
         markerDetected =false;
     }
@@ -111,7 +120,7 @@ Java_com_example_ys_orbtest_OrbTest_CVTest(JNIEnv *env, jobject instance, jlong 
 //            cv::Rodrigues(Marker2CameraNow.rowRange(0,3).colRange(0,3),rcm);
 //            tcm = Marker2CameraNow.col(3).rowRange(0,3);
 //            std::vector<cv::Point2f> markerPoints;
-//            cv::projectPoints(drawPoints, rcm, tcm, SLAM.mpTracker->mK, SLAM.mpTracker->mDistCoef, markerPoints);
+//            cv::projectPoints(drawPoints, rcm, tcm, SLAM->mpTracker->mK, SLAM->mpTracker->mDistCoef, markerPoints);
 //
 //            cv::line(*pMat, markerPoints[0],markerPoints[1], cv::Scalar(250, 0, 0), 5);
 //            cv::line(*pMat, markerPoints[0],markerPoints[2], cv::Scalar(0, 250, 0), 5);
@@ -121,13 +130,13 @@ Java_com_example_ys_orbtest_OrbTest_CVTest(JNIEnv *env, jobject instance, jlong 
 
 
 
-        cv::Mat rVec;
+        cv::Mat rVec; //旋轉
         cv::Rodrigues(pose.colRange(0, 3).rowRange(0, 3), rVec);
-        cv::Mat tVec = pose.col(3).rowRange(0, 3);
+        cv::Mat tVec = pose.col(3).rowRange(0, 3); //移動
 
-        const vector<ORB_SLAM2::MapPoint*> vpMPs = SLAM.mpTracker->mpMap->GetAllMapPoints();//所有的地图点
-        const vector<ORB_SLAM2::MapPoint*> vpTMPs = SLAM.GetTrackedMapPoints();
-        vector<cv::KeyPoint> vKPs = SLAM.GetTrackedKeyPointsUn();
+        const vector<ORB_SLAM2::MapPoint*> vpMPs = SLAM->mpTracker->mpMap->GetAllMapPoints();//所有的地图点
+        const vector<ORB_SLAM2::MapPoint*> vpTMPs = SLAM->GetTrackedMapPoints();
+        vector<cv::KeyPoint> vKPs = SLAM->GetTrackedKeyPointsUn();
 //        for(int i=0; i<vKPs.size(); i++)
 //        {
 //            if(vpTMPs[i])
@@ -149,12 +158,12 @@ Java_com_example_ys_orbtest_OrbTest_CVTest(JNIEnv *env, jobject instance, jlong 
             }
             LOGI("all map points size %d", allmappoints.size());
             std::vector<cv::Point2f> projectedPoints;
-            cv::projectPoints(allmappoints, rVec, tVec, SLAM.mpTracker->mK, SLAM.mpTracker->mDistCoef, projectedPoints);
-            for (size_t j = 0; j < projectedPoints.size(); ++j) {
-                cv::Point2f r1 = projectedPoints[j];
-                if(r1.x <640 && r1.x> 0 && r1.y >0 && r1.y <480)
-                    cv::circle(*pMat, cv::Point(r1.x, r1.y), 2, cv::Scalar(0, 255, 0), 1, 8);
-            }
+            cv::projectPoints(allmappoints, rVec, tVec, SLAM->mpTracker->mK, SLAM->mpTracker->mDistCoef, projectedPoints);
+//            for (size_t j = 0; j < projectedPoints.size(); ++j) {
+//                cv::Point2f r1 = projectedPoints[j];
+//                if(r1.x <640 && r1.x> 0 && r1.y >0 && r1.y <480)
+//                    cv::circle(*pMat, cv::Point(r1.x, r1.y), 2, cv::Scalar(0, 255, 0), 1, 8);
+//            }
 
             if(instialized == false){
                 Plane mplane;
@@ -196,7 +205,7 @@ Java_com_example_ys_orbtest_OrbTest_CVTest(JNIEnv *env, jobject instance, jlong 
 //                for(int i = 0 ; i < 4; i++){
 //                    axisPoints[i] = Plane2Camera*axisPoints[i];
 //
-//                    drawPoints[i] = Camera2Pixel(axisPoints[i],SLAM.mpTracker->mK);
+//                    drawPoints[i] = Camera2Pixel(axisPoints[i],SLAM->mpTracker->mK);
 //                    LOGE("drawPoints x y %f %f",drawPoints[i].x,drawPoints[i].y);
 //                }
 //                LOGE("axisPoints x y %f %f %f",axisPoints[0].at<float>(0,0),axisPoints[0].at<float>(1,0),axisPoints[0].at<float>(2,0));
@@ -233,7 +242,7 @@ Java_com_example_ys_orbtest_OrbTest_CVTest(JNIEnv *env, jobject instance, jlong 
                 LOGE("Tcp %f %f %f",Tcp.at<float>(0,0),Tcp.at<float>(1,0),Tcp.at<float>(2,0));
 //                cv::Rodrigues(pose.rowRange(0,3).colRange(0,3),Rcp);
 //                Tcp = pose.col(3).rowRange(0,3);
-                cv::projectPoints(drawPoints, Rcp, Tcp, SLAM.mpTracker->mK, SLAM.mpTracker->mDistCoef, projectedPoints);
+                cv::projectPoints(drawPoints, Rcp, Tcp, SLAM->mpTracker->mK, SLAM->mpTracker->mDistCoef, projectedPoints);
 
 //                cv::line(*pMat, projectedPoints[0],projectedPoints[1], cv::Scalar(250, 0, 0), 5); //画X轴 红色
 //                cv::line(*pMat, projectedPoints[0],projectedPoints[2], cv::Scalar(0, 250, 0), 5);//画Z轴  绿色
@@ -255,7 +264,7 @@ Java_com_example_ys_orbtest_OrbTest_CVTest(JNIEnv *env, jobject instance, jlong 
         }
     }
 
-    switch(SLAM.GetTrackingState()) {
+    switch(SLAM->GetTrackingState()) {
         case -1: {cv::putText(*pMat, "SYSTEM NOT READY", cv::Point(0,400), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255,0,0),2); }break;
         case 0:  {cv::putText(*pMat, "NO IMAGES YET", cv::Point(0,400), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255,0,0),2); }break;
         case 1:  {cv::putText(*pMat, "SLAM NOT INITIALIZED", cv::Point(0,400), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255,0,0),2); }break;
@@ -264,6 +273,12 @@ Java_com_example_ys_orbtest_OrbTest_CVTest(JNIEnv *env, jobject instance, jlong 
         default:break;
     }
 
+    jclass clazz = env->GetObjectClass(instance);
+
+    // Get the method id of the instance method: void javaCallback(float, float) in my.package.name.JNIReturnExample
+    jmethodID callback = env->GetMethodID(clazz, "GetResult", "(ZZ)V");
+
+    // Calls my.package.name.JNIReturnExample#javaCallback(float, float);
 
     /**将得到的相机位姿矩阵返回到java代码，以便后面更新opengl相机位姿**/
     cv::Mat ima=pose;
@@ -276,8 +291,10 @@ Java_com_example_ys_orbtest_OrbTest_CVTest(JNIEnv *env, jobject instance, jlong 
             float tempdata=ima.at<float>(i,j);
             resultPtr[i * ima.rows + j] =tempdata;
         }
+    env->CallVoidMethod(instance, callback, isKeyFrame ,isRelocalize);
+
     env->ReleaseFloatArrayElements(resultArray, resultPtr, 0);
-   return resultArray;
+    return resultArray;
 
     LOGE("Native Finished");
 #endif

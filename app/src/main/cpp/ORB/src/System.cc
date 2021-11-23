@@ -131,7 +131,7 @@ namespace ORB_SLAM2 {
     }
 
 
-    cv::Mat System::TrackMonocular(cv::Mat &im, const double &timestamp) {
+    cv::Mat System::TrackMonocular(cv::Mat &im, const double &timestamp,bool &isKeyFrame,bool &isRelocalize) {
         if (mSensor != MONOCULAR) {
             LOGE("ERROR: you called TrackMonocular but input sensor was not set to Monocular.");
             cv::Mat nothing;
@@ -174,7 +174,7 @@ namespace ORB_SLAM2 {
         clock_t frame_start, frame_end;
         LOGI("Start Grab Image Monocular !!===========================================");
         frame_start = clock();
-        cv::Mat Tcw = mpTracker->GrabImageMonocular(im, timestamp);
+        cv::Mat Tcw = mpTracker->GrabImageMonocular(im, timestamp, isKeyFrame,isRelocalize);
         frame_end = clock();
         LOGE("oneFrame total Use Time=%f\n", ((double) frame_end - frame_start) / CLOCKS_PER_SEC);
 
