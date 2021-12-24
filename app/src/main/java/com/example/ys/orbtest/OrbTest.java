@@ -67,7 +67,7 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
     private CameraBridgeViewBase mOpenCvCameraView;
     private SeekBar seek;
     private TextView myTextView;
-    public static double SCALE = 1;
+    public static float SCALE = 1;
     private static long count = 0;
     String host = null;
     private float[] pose_;
@@ -78,6 +78,7 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
     private boolean is_subscribe_bbox = false;
     private boolean is_subscribe_pose = false;
     public boolean voc_done = false;
+    public DrawPose drawAxis;
     ///
     private WebSocketClient myWebSocketClient;
     Config SLAM_config;
@@ -85,6 +86,7 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
     track rcv_server_pose;
     Button VO_place;
     public  boolean send_vo = false;
+    boolean place_vo = false;
     //long IRL_id=0;
 
 
@@ -112,7 +114,7 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
     @Override
     public void onCreate(Bundle savedInstanceState) {
 //        Log.i(TAG, "called onCreate");
-        MatrixState.set_projection_matrix(445f, 445f, 319.5f, 239.500000f, 850, 480, 0.01f, 100f);
+        MatrixState.set_projection_matrix(737.037f, 699.167f, 340.565f, 218.486f, 640, 480, 0.01f, 100f);
         super.onCreate(savedInstanceState);
         //hide the status bar
         this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
@@ -135,7 +137,12 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
             e.printStackTrace();
         }
 
-        conn();
+        try{
+            conn();
+        }catch (Exception e){
+            Log.i("network error", String.valueOf(e));
+        }
+
 
 
 
@@ -165,8 +172,9 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
 //                    // coordinates are inverted.
 //                    final float normalizedX = ((event.getX() / (float) v.getWidth()) * 2 - 1) * 4f;
 //                    final float normalizedY = (-((event.getY() / (float) v.getHeight()) * 2 - 1)) * 1.5f;
-//
-//                    if (event.getAction() == MotionEvent.ACTION_DOWN) {
+//                    Log.i("onTouch place X", String.valueOf(normalizedX));
+//                    Log.i("onTouch place Y", String.valueOf(normalizedX));
+////                    if (event.getAction() == MotionEvent.ACTION_DOWN) {
 //                        glSurfaceView.queueEvent(new Runnable() {
 //                            @Override
 //                            public void run() {
@@ -174,23 +182,23 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
 //                                        normalizedX, normalizedY);
 //                            }
 //                        });
-//                    } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
-//                        glSurfaceView.queueEvent(new Runnable() {
-//                            @Override
-//                            public void run() {
-//                                earthRender.handleTouchDrag(
-//                                        normalizedX, normalizedY);
-//                            }
-//                        });
-//                    } else if (event.getAction() == MotionEvent.ACTION_UP) {
-//                        glSurfaceView.queueEvent(new Runnable() {
-//                            @Override
-//                            public void run() {
-//                                earthRender.handleTouchUp(
-//                                        normalizedX, normalizedY);
-//                            }
-//                        });
-//                    }
+////                    } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
+////                        glSurfaceView.queueEvent(new Runnable() {
+////                            @Override
+////                            public void run() {
+////                                earthRender.handleTouchDrag(
+////                                        normalizedX, normalizedY);
+////                            }
+////                        });
+////                    } else if (event.getAction() == MotionEvent.ACTION_UP) {
+////                        glSurfaceView.queueEvent(new Runnable() {
+////                            @Override
+////                            public void run() {
+////                                earthRender.handleTouchUp(
+////                                        normalizedX, normalizedY);
+////                            }
+////                        });
+////                    }
 //
 //                    return true;
 //                } else {
@@ -212,18 +220,33 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
 //                }
 //            }
 //        }).start();
-
+        drawAxis = new DrawPose();
         VO_place = (Button) findViewById(R.id.placeVo);
+        VO_place.setText("Place");
+        VO_place.setTag("Place");
         VO_place.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                Button btn = (Button) v;
+                String tag = (String)btn.getTag();
+                if(tag.equals("Place")){
+                    place_vo = true;
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            VO_place.setText("Confirm");
+                            VO_place.setTag("Confirm");
+
+                        }
+                    });
+                }
                 send_vo = true;
             }
         });
         myTextView = (TextView) findViewById(R.id.myTextView);
         seek = (SeekBar) findViewById(R.id.mySeekBar);
         //初始化
-        seek.setProgress(60);
+        seek.setProgress(0);
         seek.setOnSeekBarChangeListener(seekListener);
         myTextView.setText("Scale:" + SCALE);
     }
@@ -499,11 +522,11 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
 
         Mat original = inputFrame.rgba().clone();
         Mat rgb = inputFrame.rgba();
-        Bitmap bitmap = Bitmap.createBitmap(original.width(), original.height(), Bitmap.Config.ARGB_8888);
-        Utils.matToBitmap(original,bitmap);
+//        Bitmap bitmap = Bitmap.createBitmap(original.width(), original.height(), Bitmap.Config.ARGB_8888);
+//        Utils.matToBitmap(original,bitmap);
         //if(voc_done)
         //{
-        send_image(bitmap);
+//        send_image(bitmap);
         //}
 
 //        if(rcv_server_data.is_processing == false) rcv_server_data.temp_rgb_mat = rgb.clone();
@@ -544,8 +567,33 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
             cvArr = new long[0];
         }
 
+//        double[][] R = new double[3][3];
+//        double[] T = new double[3];
+//
+//        for (int i = 0; i < 3; i++) {
+//                for (int j = 0; j < 3; j++) {
+//                    R[i][j] = 0;
+//                }
+//        }
+//        R[0][0] = 1;
+//        R[1][1] = 1;
+//        R[2][2] = 1;
+//
+//        for (int i = 0; i < 3; i++) {
+//            T[i] = 1;
+//        }
+//        RealMatrix rotation = new Array2DRowRealMatrix(R);
+//        RealMatrix translation = new Array2DRowRealMatrix(T);
+//        MatrixState.set_model_view_matrix(rotation, translation);
+//
+//        MyRender.flag = true;
+//        Log.i("render flag", String.valueOf(MyRender.flag));
+//        float[] poseMatrix = CVTest(rgb.getNativeObjAddr(),frame_no,arr,cvArr); //从slam系统获得相机位姿矩阵
+        int[] center = {340,240};
+        if(place_vo){
+            drawAxis.DrawAxis(rgb,center,SCALE);
+        }
 
-        //float[] poseMatrix = CVTest(rgb.getNativeObjAddr(),frame_no,arr,cvArr); //从slam系统获得相机位姿矩阵
         return  rgb;
 //
 //        long endTime = System.currentTimeMillis();
@@ -588,12 +636,12 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
 //                System.out.print("\n");
 //            }
 //
-//            if(keyframe_)
-//            {
-//                Bitmap bitmap = Bitmap.createBitmap(original.width(), original.height(), Bitmap.Config.ARGB_8888);
-//                Utils.matToBitmap(original,bitmap);
-//                send_image(bitmap);
-//            }
+////            if(keyframe_)
+////            {
+////                Bitmap bitmap = Bitmap.createBitmap(original.width(), original.height(), Bitmap.Config.ARGB_8888);
+////                Utils.matToBitmap(original,bitmap);
+////                send_image(bitmap);
+////            }
 //            System.out.println("frame Keyframe:" + keyframe_);
 //            System.out.println("frame relocalize:" + relocalize_);
 ////            Log.d("frame Keyframe:",Integer.toString(poseMatrix.length));
@@ -620,7 +668,8 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
 //            //如果没有得到相机的位姿矩阵，就不画立方体
 //            MyRender.flag = false;
 //        }
-
+//
+//        return rgb;
 //      CVTest(rgb.getNativeObjAddr());
 
     }
@@ -684,12 +733,12 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
         public void onProgressChanged(SeekBar seekBar, int progress,
                                       boolean fromUser) {
             Log.i(TAG, "onProgressChanged");
-            if (progress > 50) {
-                SCALE = (progress - 50) * 10;
-            } else {
-                SCALE = (50 - progress) * 0.5;
-            }
-            myTextView.setText("当前值 为: " + SCALE);
+
+
+            SCALE = (float)(progress)/100+1;
+
+
+            myTextView.setText("Depth: " + SCALE);
 
         }
     };

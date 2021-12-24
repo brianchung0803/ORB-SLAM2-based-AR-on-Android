@@ -2,6 +2,7 @@ package com.example.ys.orbtest.obj;
 
 import android.content.Context;
 import android.opengl.GLES20;
+import android.util.Log;
 
 import com.example.ys.orbtest.R;
 import com.example.ys.orbtest.util.ShaderHelper;
