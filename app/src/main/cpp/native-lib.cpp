@@ -137,13 +137,13 @@ Java_com_example_ys_orbtest_OrbTest_CVTest(JNIEnv *env, jobject instance, jlong 
         const vector<ORB_SLAM2::MapPoint*> vpMPs = SLAM->mpTracker->mpMap->GetAllMapPoints();//所有的地图点
         const vector<ORB_SLAM2::MapPoint*> vpTMPs = SLAM->GetTrackedMapPoints();
         vector<cv::KeyPoint> vKPs = SLAM->GetTrackedKeyPointsUn();
-//        for(int i=0; i<vKPs.size(); i++)
-//        {
-//            if(vpTMPs[i])
-//            {
-//                cv::circle(*pMat, vKPs[i].pt, 2, cv::Scalar(0, 255, 0), 1, 8);
-//            }
-//        }
+        for(int i=0; i<vKPs.size(); i++)
+        {
+            if(vpTMPs[i])
+            {
+                cv::circle(*pMat, vKPs[i].pt, 2, cv::Scalar(0, 255, 0), 1, 8);
+            }
+        }
 //        if(vpTMPs.size() > 0){
 //
 //        }

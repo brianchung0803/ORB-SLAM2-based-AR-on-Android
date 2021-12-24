@@ -318,14 +318,14 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
 
         Mat original = inputFrame.rgba().clone();
         Mat rgb = inputFrame.rgba();
-        Bitmap bitmap = Bitmap.createBitmap(original.width(), original.height(), Bitmap.Config.ARGB_8888);
-        Utils.matToBitmap(original,bitmap);
-        send_image(bitmap);
+//        Bitmap bitmap = Bitmap.createBitmap(original.width(), original.height(), Bitmap.Config.ARGB_8888);
+//        Utils.matToBitmap(original,bitmap);
+//        send_image(bitmap);
 
 
 //        Log.i("image col",Integer.toString(rgb.cols()));
 //        Log.i("image row",Integer.toString(rgb.rows()));
-//        float[] poseMatrix = CVTest(rgb.getNativeObjAddr()); //从slam系统获得相机位姿矩阵
+        float[] poseMatrix = CVTest(rgb.getNativeObjAddr()); //从slam系统获得相机位姿矩阵
 //
 //
 //

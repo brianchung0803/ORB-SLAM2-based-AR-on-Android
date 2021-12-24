@@ -284,7 +284,7 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp,
     LOGE("Track total Use Time=%f\n",((double)end-start)/CLOCKS_PER_SEC);
 
     LOGE("Grab Image  Monocular!!!!!");
-
+    LOGE("IRL debug: %d",mpMap->KeyFramesInMap());
     return mCurrentFrame.mTcw.clone();
 }
 
