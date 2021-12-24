@@ -32,8 +32,8 @@ public class MyRender implements Renderer {
     }
 
     //  Circle circle;
-    Cube cube;
-    Ball ball;//地球
+//    Cube cube;
+//    Ball ball;//地球
 
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
         Log.w("MyRender","onSurfaceCreated");
@@ -45,8 +45,8 @@ public class MyRender implements Renderer {
 //        //打开背面剪裁
         GLES20.glEnable(GLES20.GL_CULL_FACE);
 //      circle = new Circle(context);
-        cube = new Cube(context);
-        ball = new Ball(context);
+//        cube = new Cube(context);
+//        ball = new Ball(context);
     }
 
     public void onSurfaceChanged(GL10 gl, int width, int height) {
@@ -65,10 +65,10 @@ public class MyRender implements Renderer {
         //清除深度缓冲与颜色缓冲
         glClear( GLES20.GL_DEPTH_BUFFER_BIT | GLES20.GL_COLOR_BUFFER_BIT);
 
-        if(flag){
-//            cube.draw();
-            ball.draw();
-        }
+//        if(flag){
+////            cube.draw();
+//            ball.draw();
+//        }
 
     }
 

@@ -166,7 +166,8 @@ public:
     // Current and Next Frame id.
     static long unsigned int nNextId;
     long unsigned int mnId;
-
+    //IRL_SLAM
+    long unsigned int IRL_id;
     // Reference Keyframe.
     KeyFrame* mpReferenceKF;
 

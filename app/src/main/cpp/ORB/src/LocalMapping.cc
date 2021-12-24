@@ -100,7 +100,7 @@ void LocalMapping::Run()
                 KeyFrameCulling();  //剔除冗余关键帧
             }
             LOGI(" Insert Key Frame !!!");
-            mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);    //把当前帧插入到局部闭环检测队列里
+           mpLoopCloser->InsertKeyFrame(mpCurrentKeyFrame);    //把当前帧插入到局部闭环检测队列里
         }
         else if(Stop())
         {

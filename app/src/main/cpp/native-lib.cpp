@@ -5,6 +5,7 @@
 #include <time.h>
 #include "Plane.h"
 #include "Process.h"
+#include <vector>
 
 
 #include <android/log.h>
@@ -57,7 +58,7 @@ cv::Point2f Camera2Pixel(cv::Mat poseCamera,cv::Mat mk){
 
 extern "C"
 JNIEXPORT jfloatArray JNICALL
-Java_com_example_ys_orbtest_OrbTest_CVTest(JNIEnv *env, jobject instance, jlong matAddr ) {
+Java_com_example_ys_orbtest_OrbTest_CVTest(JNIEnv *env, jobject instance, jlong matAddr, jlong id, jintArray update_ids, jlongArray update_poses_address ) {
 
 #ifndef BOWISBIN
     if(ttrack == 0)
@@ -75,6 +76,33 @@ Java_com_example_ys_orbtest_OrbTest_CVTest(JNIEnv *env, jobject instance, jlong 
     //LOGI("Native Start");
     cv::Mat *pMat = (cv::Mat*)matAddr;
 
+    int size = env->GetArrayLength(update_ids);
+    LOGI("IRL_SLAM debug, size: %d\n", size);
+    jint *intArray = env->GetIntArrayElements(update_ids, JNI_FALSE);
+    jlong *longArray = env->GetLongArrayElements(update_poses_address, JNI_FALSE);
+    std::vector<int> ids;
+    std::vector<cv::Mat> poses;
+    for(int i=0; i<size; ++i)
+    {
+        ids.push_back(intArray[i]);
+        cv::Mat *tmp = (cv::Mat*)longArray[i];
+        poses.push_back(*tmp);
+
+    }
+    LOGI("IRL_SLAM debug, vector size: %d\n", ids.size());
+    /*
+    for(int i=0; i<ids.size(); ++i){
+        LOGI("IRL_SLAM debug, %d: %d\n", i, ids[i]);
+    }*/
+
+    LOGI("IRL_SLAM debug=================================\n");
+    //jfloatArray resultArray_;
+    //return resultArray_;
+
+    long IRL_id = id;
+
+    LOGI("IRL_SLAM debug, native id: %ld\n", IRL_id);
+
     std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
     ttrack = std::chrono::duration_cast < std::chrono::duration < double >> (t1 - t0).count();
 
@@ -85,7 +113,18 @@ Java_com_example_ys_orbtest_OrbTest_CVTest(JNIEnv *env, jobject instance, jlong 
     //ttrack 表示帧号
     bool isKeyFrame=false;
     bool isRelocalize=false;
-    cv::Mat pose = SLAM->TrackMonocular(*pMat,ttrack,isKeyFrame,isRelocalize);
+    if(ids.size()>0){
+        SLAM->need_update =true;
+        SLAM->update_ids = ids;
+        SLAM->update_poses = poses;
+    }else{
+        SLAM->need_update = false;
+        SLAM->update_ids.clear();
+        SLAM->update_poses.clear();
+    }
+    cv::Mat pose = SLAM->TrackMonocular(*pMat,ttrack,isKeyFrame,isRelocalize,IRL_id);
+
+    //cv::Mat pose;
     end = clock();
     LOGI("Get Pose Use Time=%f\n",((double)end-start)/CLOCKS_PER_SEC);
 
@@ -276,7 +315,7 @@ Java_com_example_ys_orbtest_OrbTest_CVTest(JNIEnv *env, jobject instance, jlong 
     jclass clazz = env->GetObjectClass(instance);
 
     // Get the method id of the instance method: void javaCallback(float, float) in my.package.name.JNIReturnExample
-    jmethodID callback = env->GetMethodID(clazz, "GetResult", "(ZZ)V");
+    jmethodID callback = env->GetMethodID(clazz, "GetResult", "(ZZZ)V");
 
     // Calls my.package.name.JNIReturnExample#javaCallback(float, float);
 
@@ -291,7 +330,8 @@ Java_com_example_ys_orbtest_OrbTest_CVTest(JNIEnv *env, jobject instance, jlong 
             float tempdata=ima.at<float>(i,j);
             resultPtr[i * ima.rows + j] =tempdata;
         }
-    env->CallVoidMethod(instance, callback, isKeyFrame ,isRelocalize);
+
+    env->CallVoidMethod(instance, callback, isKeyFrame ,isRelocalize,SLAM->vocabulary_done);
 
     env->ReleaseFloatArrayElements(resultArray, resultPtr, 0);
     return resultArray;

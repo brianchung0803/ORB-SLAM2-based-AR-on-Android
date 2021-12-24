@@ -57,7 +57,10 @@ public:
     };
 
 public:
-
+    //IRL_SLAM
+    bool need_update = false;
+    std::vector<int> update_ids;
+    std::vector<cv::Mat> update_poses;
     // Initialize the SLAM system. It launches the Local Mapping, Loop Closing and Viewer threads.
     System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor, const bool bUseViewer = true);
 
@@ -75,10 +78,11 @@ public:
     // Proccess the given monocular frame
     // Input images: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to grayscale.
     // Returns the camera pose (empty if tracking fails).
-    cv::Mat TrackMonocular( cv::Mat &im, const double &timestamp,bool& isKeyFrame,bool& isRelocalize);
+    cv::Mat TrackMonocular( cv::Mat &im, const double &timestamp,bool& isKeyFrame,bool& isRelocalize, long IRL_id);
 
     // This stops local mapping thread (map building) and performs only camera tracking.
     void ActivateLocalizationMode();
+    bool vocabulary_done = false;
     // This resumes local mapping thread and performs SLAM again.
     void DeactivateLocalizationMode();
 

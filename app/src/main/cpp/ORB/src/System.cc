@@ -75,7 +75,7 @@ namespace ORB_SLAM2 {
 
 
         mpVocabulary = new ORBVocabulary();
-        // bool bVocLoad = mpVocabulary->loadFromTextFile(strVocFile);
+        //bool bVocLoad = mpVocabulary->loadFromTextFile(strVocFile);
         bool bVocLoad = mpVocabulary->loadFromBinaryFile(strVocFile);
         if (!bVocLoad) {
             LOGE("Wrong path to vocabulary. ");
@@ -88,6 +88,7 @@ namespace ORB_SLAM2 {
         //Create KeyFrame Database
         mpKeyFrameDatabase = new KeyFrameDatabase(*mpVocabulary);
         LOGI("Create KeyFrame Database========================================");
+        vocabulary_done = true;
         //Create the Map
         mpMap = new Map();
         LOGI("Create the Map========================================");
@@ -131,7 +132,7 @@ namespace ORB_SLAM2 {
     }
 
 
-    cv::Mat System::TrackMonocular(cv::Mat &im, const double &timestamp,bool &isKeyFrame,bool &isRelocalize) {
+    cv::Mat System::TrackMonocular(cv::Mat &im, const double &timestamp,bool &isKeyFrame,bool &isRelocalize,long IRL_id) {
         if (mSensor != MONOCULAR) {
             LOGE("ERROR: you called TrackMonocular but input sensor was not set to Monocular.");
             cv::Mat nothing;
@@ -146,10 +147,10 @@ namespace ORB_SLAM2 {
                 mpLocalMapper->RequestStop();
 
                 // Wait until Local Mapping has effectively stopped
-                while (!mpLocalMapper->isStopped()) {
-                    usleep(1000);
-                }
-                LOGE("Only Tracking !!!!");
+                //while (!mpLocalMapper->isStopped()) {
+                //    usleep(1000);
+                //}
+                //LOGE("Only Tracking !!!!");
                 mpTracker->InformOnlyTracking(true);
                 mbActivateLocalizationMode = false;
             }
@@ -174,7 +175,8 @@ namespace ORB_SLAM2 {
         clock_t frame_start, frame_end;
         LOGI("Start Grab Image Monocular !!===========================================");
         frame_start = clock();
-        cv::Mat Tcw = mpTracker->GrabImageMonocular(im, timestamp, isKeyFrame,isRelocalize);
+        LOGI("IRL_SLAM debug, system id: %ld\n", IRL_id);
+        cv::Mat Tcw = mpTracker->GrabImageMonocular(im, timestamp, isKeyFrame,isRelocalize,IRL_id);
         frame_end = clock();
         LOGE("oneFrame total Use Time=%f\n", ((double) frame_end - frame_start) / CLOCKS_PER_SEC);
 
@@ -319,7 +321,7 @@ namespace ORB_SLAM2 {
 
     void System::Shutdown() {
         mpLocalMapper->RequestFinish();
-        mpLoopCloser->RequestFinish();
+        //mpLoopCloser->RequestFinish();
 //    if(mpViewer)
 //    {
 //        mpViewer->RequestFinish();
@@ -328,10 +330,10 @@ namespace ORB_SLAM2 {
 //    }
 
         // Wait until all thread have effectively stopped
-        while (!mpLocalMapper->isFinished() || !mpLoopCloser->isFinished() ||
-               mpLoopCloser->isRunningGBA()) {
-            usleep(5000);
-        }
+        //while (!mpLocalMapper->isFinished() || !mpLoopCloser->isFinished() ||
+         //      mpLoopCloser->isRunningGBA()) {
+         //   usleep(5000);
+        //}
 
 //    if(mpViewer)
 //        pangolin::BindToContext("ORB-SLAM2: Map Viewer");

@@ -60,7 +60,7 @@ public:
     // Preprocess the input and call Track(). Extract features and performs stereo matching.
     cv::Mat GrabImageStereo(const cv::Mat &imRectLeft,const cv::Mat &imRectRight, const double &timestamp);
     cv::Mat GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp);
-    cv::Mat GrabImageMonocular(const cv::Mat &im, const double &timestamp,bool& isKeyFrame,bool& isRelocalize);
+    cv::Mat GrabImageMonocular(const cv::Mat &im, const double &timestamp,bool& isKeyFrame,bool& isRelocalize, long IRL_id_);
 
     void SetLocalMapper(LocalMapping* pLocalMapper);
     void SetLoopClosing(LoopClosing* pLoopClosing);
@@ -73,8 +73,10 @@ public:
 
     // Use this function if you have deactivated local mapping and you only want to localize the camera.
     void InformOnlyTracking(const bool &flag);
+    //IRL_SLAM
     bool isKey=false;
     bool isReloc=false;
+    long current_IRL_id;
 
 
 public:
@@ -85,7 +87,9 @@ public:
         NO_IMAGES_YET=0,
         NOT_INITIALIZED=1,
         OK=2,
-        LOST=3
+        LOST=3,
+        JUST_UPDATE_INITIAL=4
+
     };
 
     eTrackingState mState;
@@ -118,6 +122,13 @@ public:
     void Reset();
 
     Map* mpMap;
+    //IRL_SLAM
+    std::vector<Frame* > mpMap_temp;
+    void UpdatePoses(const std::vector<int> ids, const std::vector<cv::Mat> poses);
+    void AddNewKeyframe_IRL(Frame &new_frame);
+    Frame* tmp_current_frame;
+    //void CheckServerUpdate(const int id, cv::Mat Tcw);
+
     cv::Mat mK;
     cv::Mat mDistCoef;
 protected:

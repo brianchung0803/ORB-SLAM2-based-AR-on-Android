@@ -1,5 +1,7 @@
 package com.example.ys.orbtest;
 
+import static org.opencv.core.CvType.CV_32F;
+
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
@@ -12,6 +14,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.support.annotation.RequiresApi;
 import android.support.v4.app.ActivityCompat;
+import android.util.Base64;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.MotionEvent;
@@ -19,17 +22,32 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
 import org.apache.commons.math3.linear.Array2DRowRealMatrix;
 import org.apache.commons.math3.linear.RealMatrix;
+import org.java_websocket.handshake.ServerHandshake;
+import org.json.JSONException;
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
+import org.opencv.core.CvException;
 import org.opencv.core.Mat;
+
+import org.json.JSONObject;
+import org.json.JSONArray;
+import java.net.URI;
+import java.net.URISyntaxException;
+import org.java_websocket.WebSocket;
+import org.java_websocket.handshake.ClientHandshake;
+import org.java_websocket.client.WebSocketClient;
+import org.opencv.core.Point;
+import org.opencv.core.Scalar;
+import org.opencv.imgproc.Imgproc;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -39,6 +57,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.net.Socket;
 
 public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraViewListener2 {
@@ -55,7 +74,18 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
     private boolean keyframe_=false;
     private boolean relocalize_=false;
     private Socket socket=null;
+    private Integer frame_no = 0;
+    private boolean is_subscribe_bbox = false;
+    private boolean is_subscribe_pose = false;
+    public boolean voc_done = false;
+    ///
+    private WebSocketClient myWebSocketClient;
     Config SLAM_config;
+    Data rcv_server_data;
+    track rcv_server_pose;
+    Button VO_place;
+    public  boolean send_vo = false;
+    //long IRL_id=0;
 
 
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
@@ -96,13 +126,18 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
         String txt_path = Environment.getExternalStorageDirectory().getAbsolutePath()+"/Download";
         File config_file = new File(txt_path,"config.txt");
         SLAM_config = new Config(config_file);
-
+        rcv_server_data = new Data();
+        rcv_server_pose = new track();
 
         try {
             readFileOnLine(filepath);
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        conn();
+
+
 
         mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.tutorial1_activity_java_surface_view);
         mOpenCvCameraView.setMaxFrameSize(640, 480);
@@ -121,64 +156,70 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
         // 设置渲染模式为主动渲染
         glSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
         glSurfaceView.setZOrderOnTop(true);
-        glSurfaceView.setOnTouchListener(new View.OnTouchListener() {
+//        glSurfaceView.setOnTouchListener(new View.OnTouchListener() {
+//            @Override
+//            public boolean onTouch(View v, MotionEvent event) {
+//                if (event != null) {
+//                    // Convert touch coordinates into normalized device
+//                    // coordinates, keeping in mind that Android's Y
+//                    // coordinates are inverted.
+//                    final float normalizedX = ((event.getX() / (float) v.getWidth()) * 2 - 1) * 4f;
+//                    final float normalizedY = (-((event.getY() / (float) v.getHeight()) * 2 - 1)) * 1.5f;
+//
+//                    if (event.getAction() == MotionEvent.ACTION_DOWN) {
+//                        glSurfaceView.queueEvent(new Runnable() {
+//                            @Override
+//                            public void run() {
+//                                earthRender.handleTouchPress(
+//                                        normalizedX, normalizedY);
+//                            }
+//                        });
+//                    } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
+//                        glSurfaceView.queueEvent(new Runnable() {
+//                            @Override
+//                            public void run() {
+//                                earthRender.handleTouchDrag(
+//                                        normalizedX, normalizedY);
+//                            }
+//                        });
+//                    } else if (event.getAction() == MotionEvent.ACTION_UP) {
+//                        glSurfaceView.queueEvent(new Runnable() {
+//                            @Override
+//                            public void run() {
+//                                earthRender.handleTouchUp(
+//                                        normalizedX, normalizedY);
+//                            }
+//                        });
+//                    }
+//
+//                    return true;
+//                } else {
+//                    return false;
+//                }
+//            }
+//        });
+
+
+//        new Thread(new Runnable() {
+//
+//            @Override
+//            public void run() {
+//                try {
+//                    socket = new Socket(SLAM_config.host_ip, SLAM_config.port);
+//                    System.out.println("Keyframe socket, host_ip:" + SLAM_config.host_ip + ", port:" + SLAM_config.port);
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
+//            }
+//        }).start();
+
+        VO_place = (Button) findViewById(R.id.placeVo);
+        VO_place.setOnClickListener(new View.OnClickListener() {
             @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                if (event != null) {
-                    // Convert touch coordinates into normalized device
-                    // coordinates, keeping in mind that Android's Y
-                    // coordinates are inverted.
-                    final float normalizedX = ((event.getX() / (float) v.getWidth()) * 2 - 1) * 4f;
-                    final float normalizedY = (-((event.getY() / (float) v.getHeight()) * 2 - 1)) * 1.5f;
-
-                    if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                        glSurfaceView.queueEvent(new Runnable() {
-                            @Override
-                            public void run() {
-                                earthRender.handleTouchPress(
-                                        normalizedX, normalizedY);
-                            }
-                        });
-                    } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
-                        glSurfaceView.queueEvent(new Runnable() {
-                            @Override
-                            public void run() {
-                                earthRender.handleTouchDrag(
-                                        normalizedX, normalizedY);
-                            }
-                        });
-                    } else if (event.getAction() == MotionEvent.ACTION_UP) {
-                        glSurfaceView.queueEvent(new Runnable() {
-                            @Override
-                            public void run() {
-                                earthRender.handleTouchUp(
-                                        normalizedX, normalizedY);
-                            }
-                        });
-                    }
-
-                    return true;
-                } else {
-                    return false;
-                }
+            public void onClick(View v) {
+                send_vo = true;
             }
         });
-
-
-        new Thread(new Runnable() {
-
-            @Override
-            public void run() {
-                try {
-                    socket = new Socket(SLAM_config.host_ip, SLAM_config.port);
-                    System.out.println("Keyframe socket, host_ip:" + SLAM_config.host_ip + ", port:" + SLAM_config.port);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }).start();
-
-
         myTextView = (TextView) findViewById(R.id.myTextView);
         seek = (SeekBar) findViewById(R.id.mySeekBar);
         //初始化
@@ -186,6 +227,66 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
         seek.setOnSeekBarChangeListener(seekListener);
         myTextView.setText("Scale:" + SCALE);
     }
+
+    public void conn()
+    {
+        ///////////////////////////Web Socket ROS_Bridge
+        URI uri;
+        try {
+            uri = new URI("ws://192.168.50.74:9090/");
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        myWebSocketClient = new WebSocketClient(uri)  {
+            @Override
+            public void onOpen(ServerHandshake serverHandshake) {
+                Log.i("Websocket", "Opened");
+                myWebSocketClient.send("Hello from " + Build.MANUFACTURER + " " + Build.MODEL);
+            }
+
+            @Override
+            public void onMessage(String s) {
+                final String message = s;
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        String[] entries = message.split(":");
+                        String data = entries[3].substring(0, entries[3].length() - 6);
+                        String topic = entries[3].substring(2, 4);
+                        System.out.println("topic" + topic);
+                        System.out.println("msg" + message);
+                        //Bounding box
+//                        if(rcv_server_data.is_processing == false && topic.equals("BB")) {
+//                            rcv_server_data.is_processing = true;
+//                            rcv_server_data.data = data;
+//                            rcv_server_data.parser();
+//                        }
+                        //Pose value
+                        if(rcv_server_pose.is_processing == false && topic.equals("UP")){
+                            rcv_server_pose.pose = data;
+                            rcv_server_pose.parser();
+                        }
+                    }
+                }).start();
+            }
+
+            @Override
+            public void onClose(int i, String s, boolean b) {
+                Log.i("Websocket", "Closed " + s);
+            }
+
+            @Override
+            public void onError(Exception e) {
+                Log.i("Websocket", "Error " + e.getMessage());
+            }
+        };
+
+        myWebSocketClient.connect();
+        //////////////////////////////////////////////////////////
+    }
+
 
 //    public void send(View view) {
 //        new Thread(new Runnable() {
@@ -212,11 +313,12 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
 //        }).start();
 //    }
 
-    public void GetResult(boolean keyframe, boolean relocalize)
+    public void GetResult(boolean keyframe, boolean relocalize, boolean is_voc)
     {
 //        pose_=pose;
         keyframe_=keyframe;
         relocalize_=relocalize;
+        voc_done = is_voc;
     }
     @Override
     public void onPause() {
@@ -259,18 +361,124 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
     }
 
 
-    private native float[] CVTest(long matAddr);  //调用 c++代码
+    private native float[] CVTest(long matAddr, long id, int[] update_ids, long[] update_poses_address);  //调用 c++代码
 
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+
+    void web_sock_send(final String encoded_img)
+    {
+        new Thread(new Runnable() {
+            @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+            @Override
+            public void run() {
+                JSONObject obj = new JSONObject();
+                JSONObject obj1 = new JSONObject();
+                String data_header;
+                if(send_vo){
+                    data_header = frame_no.toString() + "_T_" + encoded_img;
+                }else{
+                    data_header = frame_no.toString() + "_F_" + encoded_img;
+                }
+
+                try{
+                    obj1.put("data", data_header);
+                    obj.put("op","publish");
+                    obj.put("topic","/chatter");
+                    obj.put("msg", obj1);
+                }
+                catch(JSONException e){
+                    Log.i("error sending", "gg");
+                }
+                String data = "";
+                String data1 = "";
+                String op1 = "advertise";
+                String topic1 = "/chatter";
+                String type1 = "std_msgs/String";
+                data = "{\"op\": \"" + op1 + "\"";
+                data += ",\"topic\":\"" + topic1 + "\"";
+                data += ",\"type\":\"" + type1 + "\"}";
+                //For handshaking
+                myWebSocketClient.send(data);
+
+
+                //For subscription pose
+//                if(!is_subscribe_pose) {
+//                    String op = "subscribe";
+//                    String id = "002";
+//                    String topic = "/pose_update";
+//                    String type = "std_msgs/String";
+//                    String subs = "";
+//                    subs = "{\"op\": \"" + op + "\"";
+//                    subs += ",\"id\":\"" + id + "\"";
+//                    subs += ",\"topic\":\"" + topic + "\"";
+//                    subs += ",\"type\":\"" + type + "\"}";
+//                    is_subscribe_pose = true;
+//                    myWebSocketClient.send(subs);
+//                }
+
+                //For subscription bounding box
+                if(!is_subscribe_bbox) {
+                    String op = "subscribe";
+                    String id = "001";
+                    String topic = "/IRL_SLAM";
+                    String type = "std_msgs/String";
+                    String subs = "";
+                    subs = "{\"op\": \"" + op + "\"";
+                    subs += ",\"id\":\"" + id + "\"";
+                    subs += ",\"topic\":\"" + topic + "\"";
+                    subs += ",\"type\":\"" + type + "\"}";
+                    is_subscribe_bbox = true;
+                    myWebSocketClient.send(subs);
+                }
+
+                //Bitmap data
+                myWebSocketClient.send(obj.toString());
+
+                frame_no++;
+//                try {
+////                    int port = 30001;
+////                    Log.v("m1y",String.valueOf(byteArray.length));
+////                    Log.v("m1y",host);
+//                    ////////////////////////////////
+//                    socket = new Socket(SLAM_config.host_ip, SLAM_config.port);
+//                    System.out.println("Keyframe detected!");
+//                    OutputStreamWriter out = new OutputStreamWriter(socket.getOutputStream(), "UTF-8");
+//                    out.write(obj.toString());
+//                    System.out.println("Keyframe detected and sent!");
+//                    socket.shutdownOutput();
+//                    ////////////////////////////////
+
+////                    out.writeInt(byteArray.length);
+////                    DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+////                    out.write(byteArray);
+////                    out.close();
+//
+////                    socket.close();
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                    Log.v("m1y","no connection!");
+//                }
+            }
+        }).start();
+
+
+    }
+
     void send_image(Bitmap bitmap)
     {
         if(bitmap==null) return;
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         bitmap.compress(Bitmap.CompressFormat.JPEG,80,stream);
         final byte[] byteArray = stream.toByteArray();
+        //cast to string
+        final String encoded_img = Base64.encodeToString(byteArray, Base64.DEFAULT);
+        //create json object
+
+
         System.out.println("Keyframe bitmap: row: "+bitmap.getHeight()+"column: "+bitmap.getWidth());
         System.out.println("Keyframe size!"+byteArray.length);
+        web_sock_send(encoded_img);
 //        String txt_path = Environment.getExternalStorageDirectory().getAbsolutePath()+"/Download";
 //        File tmp_ = new File(txt_path,"tmp.jpg");
 //
@@ -281,33 +489,6 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
 //            e.printStackTrace();
 //        }
 //        final Socket new_socket= socket;
-
-
-        new Thread(new Runnable() {
-            @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-            @Override
-            public void run() {
-
-                try {
-//                    int port = 30001;
-//                    Log.v("m1y",String.valueOf(byteArray.length));
-//                    Log.v("m1y",host);
-                    socket = new Socket(SLAM_config.host_ip, SLAM_config.port);
-//                    Log.v("m1y","socket build");
-                    System.out.println("Keyframe detected!");
-                    DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-//                    out.writeInt(byteArray.length);
-                    out.write(byteArray);
-//                    out.close();
-                    System.out.println("Keyframe detected and sent!");
-                    socket.shutdownOutput();
-//                    socket.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    Log.v("m1y","no connection!");
-                }
-            }
-        }).start();
     }
     /**
      * 处理图像的函数，这个函数在相机刷新每一帧都会调用一次，而且每次的输入参数就是当前相机视图信息
@@ -320,12 +501,73 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
         Mat rgb = inputFrame.rgba();
         Bitmap bitmap = Bitmap.createBitmap(original.width(), original.height(), Bitmap.Config.ARGB_8888);
         Utils.matToBitmap(original,bitmap);
+        //if(voc_done)
+        //{
         send_image(bitmap);
+        //}
+
+//        if(rcv_server_data.is_processing == false) rcv_server_data.temp_rgb_mat = rgb.clone();
+//
+//        if(rcv_server_data.rgb_mat == null || rcv_server_data.is_processing == true) {
+//            Log.i("current mat value", "value=" + rcv_server_data.rgb_mat);
+//            Log.i("current is_process", "value=" + rcv_server_data.is_processing);
+//            Log.i("onCameraFrame:", "return rgb");
+//            return rgb;
+//        }
+//        else {
+////            try {
+//                Log.i("onCameraFrame:", "return rgb_mat" );
+//            return rcv_server_data.rgb_mat;
+//        }
+//            } catch (CvException e) {
+//                Log.i("onCameraFrame error:", "error = " + e);
+//            }
+//        }
+        //return  rgb;
 
 
 //        Log.i("image col",Integer.toString(rgb.cols()));
 //        Log.i("image row",Integer.toString(rgb.rows()));
-//        float[] poseMatrix = CVTest(rgb.getNativeObjAddr()); //从slam系统获得相机位姿矩阵
+        long startTime = System.currentTimeMillis();
+        int[] arr;
+        long[] cvArr;
+
+        if(rcv_server_pose.is_processing)
+        {
+            arr = rcv_server_pose.id;
+            cvArr = rcv_server_pose.update_poses;
+            rcv_server_pose.is_processing = false;
+        }
+        else{
+
+            arr= new int[0];
+            cvArr = new long[0];
+        }
+
+
+        //float[] poseMatrix = CVTest(rgb.getNativeObjAddr(),frame_no,arr,cvArr); //从slam系统获得相机位姿矩阵
+        return  rgb;
+//
+//        long endTime = System.currentTimeMillis();
+//        frame_no++;
+//        //System.out.println("pose"+poseMatrix.length);
+//        //if(poseMatrix.length==16)
+//        //{
+//       //     System.out.println("tracking took " + (endTime - startTime) + " milliseconds");
+//        //    for(int i =0; i<4;++i)
+//        //    {
+//       //         for(int j=0; j<4;++j)
+//        //        {
+//        //            System.out.println("pose "+i+", "+j+": "+poseMatrix[i*4+j]);
+//         //       }
+//
+//         //   }
+//
+//       // }
+//
+//        //System.out.println();
+//
+//        return  rgb;
 //
 //
 //
@@ -380,7 +622,7 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
 //        }
 
 //      CVTest(rgb.getNativeObjAddr());
-        return rgb;
+
     }
 
 
