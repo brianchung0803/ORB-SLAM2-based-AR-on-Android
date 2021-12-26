@@ -21,17 +21,20 @@ public class DrawPose {
     double[][] T_angle =  new double[4][4];
     Mat VO_center_world = new Mat(3,1,CV_32F);
     Mat center_point = new Mat(3,1,CV_32F);
+    Mat center_point_x = new Mat(3,1,CV_32F);
+    Mat center_point_y = new Mat(3,1,CV_32F);
+    Mat center_point_z = new Mat(3,1,CV_32F);
     double[] VO_x_world = new double[3];
     double[] VO_y_world = new double[3];
     double[] VO_z_world = new double[3];
     Mat Kalib = new Mat(3,3, CV_32F);
 
-    private void printMat(Mat mat){
+    private void printMat(Mat mat, String label){
         for(int i=0; i<mat.rows();++i)
         {
             for(int j=0;j<mat.cols();++j){
                 double[] tmp = mat.get(i,j);
-                Log.i("printMat",Integer.toString(i)+", "+Integer.toString(j)+": "+tmp[0]);
+                Log.i(label,Integer.toString(i)+", "+Integer.toString(j)+": "+tmp[0]);
             }
         }
 
@@ -150,6 +153,9 @@ public class DrawPose {
 
     public void set_anchor(float depth, Mat R, Mat T){
 //        Pw = inv(K*Rot)*(P_center - K*Trans)
+
+
+
         Mat KR_inv_tmp = new Mat(3,3,CV_32F);
         Core.gemm(Kalib, R, 1, Mat.zeros(3, 3, CV_32F), 0, KR_inv_tmp, 0);
 
@@ -163,6 +169,7 @@ public class DrawPose {
         Core.subtract(center_point,KT,p_KT);
         Core.gemm(KR_inv, p_KT, 1, Mat.zeros(3, 3, CV_32F), 0, VO_center_world, 0);
         VO_center_world.put(2,0,depth);
+        printMat(VO_center_world,"center");
 //        Core.gemm(new_mat, test_mat, 1, Mat.zeros(3, 3, CV_32F), 0, result, 0);
 //        Core.multiply(new_mat, test_mat , result);
 //        printMat(VO_center_world);

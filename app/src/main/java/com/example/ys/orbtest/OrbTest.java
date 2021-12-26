@@ -25,6 +25,7 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import org.apache.commons.math3.linear.Array2DRowRealMatrix;
 import org.apache.commons.math3.linear.RealMatrix;
@@ -87,6 +88,11 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
     Button VO_place;
     public  boolean send_vo = false;
     boolean place_vo = false;
+    boolean vo_confirm = false;
+    boolean change_to_viewer = false;
+    boolean change_to_host = false;
+    Mat Rot = new Mat(3,3,CV_32F);
+    Mat Trans = new Mat(3,1,CV_32F);
     //long IRL_id=0;
 
 
@@ -163,49 +169,7 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
         // 设置渲染模式为主动渲染
         glSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
         glSurfaceView.setZOrderOnTop(true);
-//        glSurfaceView.setOnTouchListener(new View.OnTouchListener() {
-//            @Override
-//            public boolean onTouch(View v, MotionEvent event) {
-//                if (event != null) {
-//                    // Convert touch coordinates into normalized device
-//                    // coordinates, keeping in mind that Android's Y
-//                    // coordinates are inverted.
-//                    final float normalizedX = ((event.getX() / (float) v.getWidth()) * 2 - 1) * 4f;
-//                    final float normalizedY = (-((event.getY() / (float) v.getHeight()) * 2 - 1)) * 1.5f;
-//                    Log.i("onTouch place X", String.valueOf(normalizedX));
-//                    Log.i("onTouch place Y", String.valueOf(normalizedX));
-////                    if (event.getAction() == MotionEvent.ACTION_DOWN) {
-//                        glSurfaceView.queueEvent(new Runnable() {
-//                            @Override
-//                            public void run() {
-//                                earthRender.handleTouchPress(
-//                                        normalizedX, normalizedY);
-//                            }
-//                        });
-////                    } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
-////                        glSurfaceView.queueEvent(new Runnable() {
-////                            @Override
-////                            public void run() {
-////                                earthRender.handleTouchDrag(
-////                                        normalizedX, normalizedY);
-////                            }
-////                        });
-////                    } else if (event.getAction() == MotionEvent.ACTION_UP) {
-////                        glSurfaceView.queueEvent(new Runnable() {
-////                            @Override
-////                            public void run() {
-////                                earthRender.handleTouchUp(
-////                                        normalizedX, normalizedY);
-////                            }
-////                        });
-////                    }
-//
-//                    return true;
-//                } else {
-//                    return false;
-//                }
-//            }
-//        });
+
 
 
 //        new Thread(new Runnable() {
@@ -228,8 +192,8 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
             @Override
             public void onClick(View v) {
                 Button btn = (Button) v;
-                String tag = (String)btn.getTag();
-                if(tag.equals("Place")){
+                String tag = (String) btn.getTag();
+                if (tag.equals("Place")) {
                     place_vo = true;
                     runOnUiThread(new Runnable() {
                         @Override
@@ -237,6 +201,38 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
                             VO_place.setText("Confirm");
                             VO_place.setTag("Confirm");
 
+                        }
+                    });
+                }
+                if (tag.equals("Confirm")) {
+                    vo_confirm = true;
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            VO_place.setText("Change to viewer");
+                            VO_place.setTag("Change to viewer");
+
+                        }
+                    });
+                }
+                if (tag.equals("Change to viewer")) {
+                    change_to_viewer = true;
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            VO_place.setText("Change to Host");
+                            VO_place.setTag("Change to Host");
+                            }
+                        });
+                }
+
+                if (tag.equals("Change to Host")) {
+                    change_to_host = true;
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            VO_place.setText("Place");
+                            VO_place.setTag("Place");
                         }
                     });
                 }
@@ -287,9 +283,10 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
 //                            rcv_server_data.parser();
 //                        }
                         //Pose value
-                        if(rcv_server_pose.is_processing == false && topic.equals("UP")){
-                            rcv_server_pose.pose = data;
-                            rcv_server_pose.parser();
+                        if(rcv_server_pose.is_processing == false && topic.equals("BB")){
+                            rcv_server_pose.parse_pose(data);
+//                            Trans = rcv_server_pose.getTrans();
+//                            rcv_server_pose.parser();
                         }
                     }
                 }).start();
@@ -398,7 +395,7 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
                 JSONObject obj = new JSONObject();
                 JSONObject obj1 = new JSONObject();
                 String data_header;
-                if(send_vo){
+                if(vo_confirm){
                     data_header = frame_no.toString() + "_T_" + encoded_img;
                 }else{
                     data_header = frame_no.toString() + "_F_" + encoded_img;
@@ -522,12 +519,12 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
 
         Mat original = inputFrame.rgba().clone();
         Mat rgb = inputFrame.rgba();
-//        Bitmap bitmap = Bitmap.createBitmap(original.width(), original.height(), Bitmap.Config.ARGB_8888);
-//        Utils.matToBitmap(original,bitmap);
-        //if(voc_done)
-        //{
-//        send_image(bitmap);
-        //}
+        Bitmap bitmap = Bitmap.createBitmap(original.width(), original.height(), Bitmap.Config.ARGB_8888);
+        Utils.matToBitmap(original,bitmap);
+//        if(voc_done)
+//        {
+        send_image(bitmap);
+//        }
 
 //        if(rcv_server_data.is_processing == false) rcv_server_data.temp_rgb_mat = rgb.clone();
 //
@@ -592,6 +589,16 @@ public class OrbTest extends Activity implements CameraBridgeViewBase.CvCameraVi
         int[] center = {340,240};
         if(place_vo){
             drawAxis.DrawAxis(rgb,center,SCALE);
+            if(vo_confirm){
+                drawAxis.set_anchor(SCALE,rcv_server_pose.Rot_now.clone(),rcv_server_pose.Trans_now.clone());
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(OrbTest.this, "set VO done", Toast.LENGTH_LONG).show();
+                    }
+                });
+                place_vo = false;
+            }
         }
 
         return  rgb;
